@@ -1,7 +1,7 @@
-FROM debian:bullseye-slim AS builder
+FROM debian:bookworm-slim AS builder
 
-ARG NFDUMP_VERSION=1.6.23
-ARG NFSEN_VERSION=1.3.8
+ARG NFDUMP_VERSION=1.7.4
+ARG NFSEN_VERSION=1.3.10
 ARG TIMEZONE=UTC
 ARG VERSION=1.0.0
 ARG BUILD_ID=0000000
@@ -57,13 +57,13 @@ ADD entrypoint.sh /artifacts/entrypoint.sh
 ADD healthcheck.sh /artifacts/healthcheck.sh
 
 WORKDIR /artifacts
-RUN wget -O nfsen.tar.gz http://sourceforge.net/projects/nfsen/files/stable/nfsen-${NFSEN_VERSION}/nfsen-${NFSEN_VERSION}.tar.gz \
+RUN wget -O nfsen.tar.gz https://github.com/phaag/nfsen/archive/refs/tags/v${NFSEN_VERSION}.tar.gz \
     && tar -xzf nfsen.tar.gz \
     && mv nfsen-${NFSEN_VERSION} nfsen \
-    && sed -i -re "s|rrd_version < 1.6|rrd_version < 1.8|g" nfsen/libexec/NfSenRRD.pm \
+#    && sed -i -re "s|rrd_version < 1.6|rrd_version < 1.8|g" nfsen/libexec/NfSenRRD.pm \
     && mv /artifacts/nfsen.conf /artifacts/nfsen/etc/nfsen.conf
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 ARG TIMEZONE=UTC
 ARG VERSION=1.0.0
@@ -87,9 +87,8 @@ COPY --from=builder /artifacts/healthcheck.sh /healthcheck.sh
 
 HEALTHCHECK --interval=1m --timeout=5s CMD /healthcheck.sh
 
-RUN ln -snf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime \
-    && echo "$TIMEZONE" > /etc/timezone \
-    && echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections \
+RUN \
+    echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections \
     && apt-get update -qq \
     && apt-get install --no-install-recommends --no-install-suggests -y \
        libmailtools-perl \
